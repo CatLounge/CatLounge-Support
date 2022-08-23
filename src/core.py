@@ -238,7 +238,8 @@ def handle_private(ev):
 		or ev.json.get("forward_sender_name") is not None):
 		msg = "It is not possible to forward messages here."
 		return callwrapper(lambda: bot.send_message(ev.chat.id, msg))
-
+	logging.debug("Old username: " + previous_username)
+	logging.debug("New username: " + user.username)
 	if (now - user.last_messaged >= ID_REMIND_DURATION) or (previous_username is not None):
 		msg = "---------------------------------------\n"
 		msg += format_user_info(user)
