@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timedelta
 
 LONG_LONG_TIME = datetime(2100, 1, 1)
-ID_REMIND_DURATION = timedelta(days=2)
+ID_REMIND_DURATION = timedelta(hours=1)
 ALL_CONTENT_TYPES = ("text", "location", "venue", "contact", "animation",
 	"audio", "document", "photo", "sticker", "video", "video_note", "voice")
 
@@ -201,13 +201,16 @@ def handle_private(ev):
 		return
 
 	# refresh user in db
+	previous_username = None
 	now = datetime.now()
 	with db_modify_user(ev.chat.id, allow_new=True) as user:
 		if user.id is None:
 			user.defaults()
 			user.id = ev.chat.id
 			assert ev.chat.id == ev.from_user.id
-		user.username = ev.from_user.username
+		elif user.username != ev.from_user.username:
+			previous_username = user.username
+			user.username = ev.from_user.username
 		user.realname = ev.from_user.first_name
 		if ev.from_user.last_name:
 			user.realname += " " + ev.from_user.last_name
@@ -236,9 +239,11 @@ def handle_private(ev):
 		msg = "It is not possible to forward messages here."
 		return callwrapper(lambda: bot.send_message(ev.chat.id, msg))
 
-	if now - user.last_messaged >= ID_REMIND_DURATION:
+	if (now - user.last_messaged >= ID_REMIND_DURATION) or (previous_username is not None):
 		msg = "---------------------------------------\n"
 		msg += format_user_info(user)
+		if previous_username is not None:
+			msg += "Previous name: %s\n" % (previous_username)
 		callwrapper(lambda: bot.send_message(target_group, msg, parse_mode="HTML"))
 	def f(user_id=user.id):
 		ev2 = bot.forward_message(target_group, ev.chat.id, ev.message_id)
