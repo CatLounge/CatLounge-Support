@@ -150,9 +150,9 @@ def handle_group(ev):
 
 	user_id = db.get("m%d" % ev.reply_to_message.message_id)
 	logging.debug("found id = %d mapped to user %s", ev.reply_to_message.message_id, user_id)
-	if user_id is None:
-		logging.warning("Couldn't find replied to message in target group")
-		return
+	#if user_id is None:
+		#logging.warning("Couldn't find replied to message in target group")
+		#return
 
 	# handle commands
 	if ev.content_type == "text" and ev.text.startswith("/"):
@@ -175,15 +175,26 @@ def handle_group_command(ev, user_id, c, arg):
 		msg = format_user_info(db_get_user(user_id))
 		return callwrapper(lambda: bot.send_message(target_group, msg, parse_mode="HTML"))
 	elif c == "ban":
+		if user_id is None and arg.isdigit():
+			user_id = int(arg)
+			until = LONG_LONG_TIME
+			msg = arg + " banned permanently."
 		delta = parse_timedelta(arg)
-		if not delta:
+		if arg == "":
 			until = LONG_LONG_TIME
 			msg = "User banned permanently."
-		else:
+		if delta:
 			until = datetime.now() + delta
 			msg = "User banned until %s." % format_datetime(until)
-		with db_modify_user(user_id) as user:
-			user.banned_until = until
+		try:
+			with db_modify_user(user_id) as user:
+				user.banned_until = until
+		except:
+			with db_modify_user(user_id, allow_new=True) as user:
+				if user.id is None:
+					user.defaults()
+					user.id = user_id
+					user.banned_until = until
 		return callwrapper(lambda: bot.send_message(target_group, msg))
 	elif c == "unban":
 		msg = None
